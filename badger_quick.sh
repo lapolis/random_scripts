@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# ./badger_quick.sh /shellcode/full/path.bin
+
 PP=$1
 NAME=$(echo $PP | rev | cut -d'/' -f1 | rev | cut -d'.' -f1)
 OUTDIR="$(echo $PP | rev | cut -d'/' -f2- | rev)/compiled"
@@ -15,4 +17,5 @@ xxd -i badger.bin >> shellcode.h
 make
 mv shellcode.dll $OUTDIR/$NAME.dll
 mv shellcode.exe $OUTDIR/$NAME.exe
+rm badger.bin
 echo DONE
