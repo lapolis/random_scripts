@@ -1,9 +1,20 @@
 #!/bin/sh
 
-# v.0.16
+# v.0.18
+# NEED TESTING
 
 # all IPs need to be in ./tar.txt
 # all IPs need to be in ./exc.txt
+
+## add an arg to resume from a certain stage, example:
+## sudo bash ./autoscan.sh 2
+if [ $# -eq 0 ]
+then
+        resume=0
+else
+        resume=$1
+fi
+
 stage0="T:80,443"
 stage1="T:25,135,137,139,445,1433,3306,5432,U:7,9,17,19,37,49,53,67-69,80,88,111,120,123,135-139,158,161-162"
 stage2="T:23,21,22,110,111,2049,3389,8080"
@@ -20,6 +31,11 @@ chmod 666 ./tmp/doneips_autoscan
 
 for X in "${!stages[@]}"
 do
+        if [[ $X -lt $resume ]]
+        then
+                continue
+        fi
+    
         echo "-------------------------------------- STARTING STAGE$X -------------------------------------------------" >> .stage
         echo "-------------------------------------- STARTING STAGE$X -------------------------------------------------"
         echo "-------------------------------------- STARTING STAGE$X -------------------------------------------------"
@@ -28,14 +44,21 @@ do
         # fast option
         # nmap -p ${stages[$X]} --max-rtt-timeout 1250ms --min-rtt-timeout 100ms --initial-rtt-timeout 500ms --max-retries 1  -sS -Pn -n -sU -vv -iL ./targets.txt -oA general/stage$X-quick
         
-        # normal speed
-        nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-quick --append-output --excludefile ./exc.txt
-        nmap -p ${stages[$X]} --max-retries 3  -sT -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-quick --append-output --excludefile ./exc.txt
+        # if resuming a stage
+        if [[ $X -eq $resume ]]
+        then
+                nmap --resume general/stage$X-sS-quick.xml
+                nmap --resume general/stage$X-sT-quick.xml
+        else
+                # slightly quicker than a single scan at normal speed
+                nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sS-quick --excludefile ./exc.txt
+                nmap -p ${stages[$X]} --max-retries 3  -sT -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sT-quick --excludefile ./exc.txt
+        fi
         
         # very fast option
         # nmap -p ${stages[$X]} --min-rate 5000 --max-rtt-timeout 1250ms --min-rtt-timeout 100ms --initial-rtt-timeout 500ms --max-retries 1  -sS -Pn -n -sU -vv -iL ./targets.txt -oA general/stage$X-quick
         
-        grep /open/ general/stage$X-quick.gnmap | cut -d' ' -f2 | sort -u > general/up.ip
+        grep -h /open/ general/stage$X-*-quick.gnmap | cut -d' ' -f2 | sort -u > general/up.ip
 
         for IP in `cat general/up.ip`
         do
