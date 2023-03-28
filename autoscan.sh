@@ -3,8 +3,9 @@
 # v.0.18
 # NEED TESTING
 
-# all IPs need to be in ./tar.txt
-# all IPs need to be in ./exc.txt
+# all target IPs need to be in ./tar.txt
+# all exclusion IPs need to be in ./exc.txt
+## both files need to exist!! ##
 
 ## add an arg to resume from a certain stage, example:
 ## sudo bash ./autoscan.sh 2
