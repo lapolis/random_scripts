@@ -77,7 +77,7 @@ do
 
         for IP in `cat general/up.ip`
         do
-                PP=$(cat general/stage$X-quick.gnmap  | grep $IP | grep -oP '\d{1,5}/open/[tcpud]{3}' | awk '{if($3 =="tcp")print "T:"$1;else if($3 =="udp")print "U:"$1}' FS='/' | sort -u | xargs | tr ' ' ',')
+                PP=$(cat general/stage$X-*-quick.gnmap  | grep $IP | grep -oP '\d{1,5}/open/[tcpud]{3}' | awk '{if($3 =="tcp")print "T:"$1;else if($3 =="udp")print "U:"$1}' FS='/' | sort -u | xargs | tr ' ' ',')
                 if grep -Fxq "$IP" ./tmp/doneips_autoscan
                 then
                         nmap -p$PP $IP -sV -sC -sS -sU -oA machines/$IP-open -vv -Pn --append-output
