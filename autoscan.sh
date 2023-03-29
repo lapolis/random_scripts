@@ -9,7 +9,7 @@
 
 ## add an arg to resume from a certain stage, example:
 ## sudo bash ./autoscan.sh 2
-if [ $# -eq 0 ]
+if [[ $# -eq 0 ]]
 then
         resume=0
 else
@@ -49,8 +49,21 @@ do
         # if resuming a stage
         if [[ $X -eq $resume ]]
         then
-                nmap --resume general/stage$X-sS-quick.xml
-                nmap --resume general/stage$X-sT-quick.xml
+                ## sS scan check if actually exists
+                if [[ -f general/stage$X-sS-quick.xml ]]
+                then
+                        nmap --resume general/stage$X-sS-quick.xml
+                else
+                        nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sS-quick --excludefile ./exc.txt
+                fi
+
+                ## sT scan check if actually exists
+                if [[ -f general/stage$X-sT-quick.xml ]]
+                then
+                        nmap --resume general/stage$X-sT-quick.xml
+                else
+                        nmap -p ${stages[$X]} --max-retries 5  -sT -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sT-quick --excludefile ./exc.txt
+                fi
         else
                 # slightly quicker than a single scan at normal speed
                 nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sS-quick --excludefile ./exc.txt
