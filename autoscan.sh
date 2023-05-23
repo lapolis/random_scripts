@@ -33,7 +33,7 @@ stages=($stage0 $stage1 $stage2 $stage3 $stage4 $stage5 $stage6 $stage7 $stage8 
 mkdir machines 2>/dev/null
 mkdir general 2>/dev/null
 mkdir tmp 2>/dev/null
-echo '' > ./tmp/doneips_autoscan
+echo '' > ./tmp/specific_ips
 ip4=$(ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 echo "$ipv4" >> ./exc.txt
 
@@ -91,25 +91,27 @@ do
         
         # very fast option
         # nmap -p ${stages[$X]} --min-rate 5000 --max-rtt-timeout 1250ms --min-rtt-timeout 100ms --initial-rtt-timeout 500ms --max-retries 1  -sS -Pn -n -sU -vv -iL ./targets.txt -oA general/stage$X-quick
+
+        echo "STARTING SPECIFIC IPs STAGE $X" >> ./tmp/stage
         
         grep -h /open/ general/stage$X-*-quick.gnmap | cut -d' ' -f2 | sort -u > general/up.ip
 
         for IP in `cat general/up.ip`
         do
                 PP=$(cat general/stage$X-*-quick.gnmap  | grep $IP | grep -oP '\d{1,5}/open/[tcpud]{3}' | awk '{if($3 =="tcp")print "T:"$1;else if($3 =="udp")print "U:"$1}' FS='/' | sort -u | xargs | tr ' ' ',')
-                if grep -q "specific $IP" ./tmp/doneips_autoscan
+                if grep -q "specific $IP" ./tmp/specific_ips
                 then
-                        if grep -q "DONE specific $IP" ./tmp/doneips_autoscan
+                        if grep -q "DONE specific $IP" ./tmp/specific_ips
                         then
                                 continue
                         else
                                 nmap --resume machines/$IP-stage$X-open.xml
                         fi
                 else
-                        echo "STARTING specific $IP" >> ./tmp/doneips_autoscan
+                        echo "STARTING specific $IP" >> ./tmp/specific_ips
                         nmap -p$PP $IP -A -sS -sC -sU -oA machines/$IP-stage$X-open -vv -Pn
                 fi
-                echo "DONE specific $IP" >> ./tmp/doneips_autoscan
+                echo "DONE specific $IP" >> ./tmp/specific_ips
         done
         echo "ENDING STAGE $X" >> ./tmp/stage
 done
