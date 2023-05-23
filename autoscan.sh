@@ -69,6 +69,7 @@ do
                 then
                         echo "RESUMING STAGE $X sS" >> ./tmp/stage
                         nmap --resume general/stage$X-sS-quick.xml
+                        echo "DONE STAGE $X sS" >> ./tmp/stage
                 else
                         echo "STARTING STAGE $X sS" >> ./tmp/stage
                         nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sS-quick --excludefile ./exc.txt
@@ -83,6 +84,7 @@ do
                 then
                         echo "RESUMING STAGE $X sT" >> ./tmp/stage
                         nmap --resume general/stage$X-sT-quick.xml
+                        echo "DONE STAGE $X sT" >> ./tmp/stage
                 else
                         echo "STARTING STAGE $X sT" >> ./tmp/stage
                         nmap -p ${stages[$X]} --max-retries 5  -sT -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sT-quick --excludefile ./exc.txt
