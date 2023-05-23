@@ -103,17 +103,17 @@ do
         do
                 PP=$(cat general/stage$X-*-quick.gnmap  | grep $IP | grep -oP '\d{1,5}/open/[tcpud]{3}' | awk '{if($3 =="tcp")print "T:"$1;else if($3 =="udp")print "U:"$1}' FS='/' | sort -u | xargs | tr ' ' ',')
                 
-                if ! grep -q "DONE specific $IP" ./tmp/specific_ips
+                if ! grep -q "DONE specific $IP stage $X" ./tmp/specific_ips
                 then
-                        if grep -q "STARTING specific $IP" ./tmp/specific_ips
+                        if grep -q "STARTING specific $IP stage $X" ./tmp/specific_ips
                         then
-                                echo "RESUMING specific $IP" >> ./tmp/specific_ips
+                                echo "RESUMING specific $IP stage $X" >> ./tmp/specific_ips
                                 nmap --resume machines/$IP-stage$X-open.xml
-                                echo "DONE specific $IP" >> ./tmp/specific_ips
+                                echo "DONE specific $IP stage $X" >> ./tmp/specific_ips
                         else
-                                echo "STARTING specific $IP" >> ./tmp/specific_ips
+                                echo "STARTING specific $IP stage $X" >> ./tmp/specific_ips
                                 nmap -p$PP $IP -A -sS -sC -sU -oA machines/$IP-stage$X-open -vv -Pn
-                                echo "DONE specific $IP" >> ./tmp/specific_ips
+                                echo "DONE specific $IP stage $X" >> ./tmp/specific_ips
                         fi
                 fi
         done
