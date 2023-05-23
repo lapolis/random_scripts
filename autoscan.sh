@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# v.0.20
+# v.0.21
+# Fixed resume function for single hosts
+# Added auto skip
 
 # all target IPs need to be in ./tar.txt
 # can also add the ./exc.txt with the IP to exclude
@@ -8,6 +10,7 @@
 
 ## add an arg to resume from a certain stage, example:
 ## sudo bash ./autoscan.sh 2
+
 if [[ $# -eq 0 ]]
 then
         resume=-1
@@ -31,7 +34,6 @@ mkdir machines 2>/dev/null
 mkdir general 2>/dev/null
 mkdir tmp 2>/dev/null
 echo '' > ./tmp/doneips_autoscan
-chmod 666 ./tmp/doneips_autoscan
 ip4=$(ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 echo "$ipv4" >> ./exc.txt
 
@@ -39,14 +41,20 @@ for X in "${!stages[@]}"
 do
         if [[ $X -lt $resume ]]
         then
-                echo "SKIPPING STAGE $X" >> .stage
+                echo "SKIPPING STAGE $X (forced)" >> ./tmp/stage
+                continue
+        fi
+
+        if grep -q "ENDING STAGE $X" ./tmp/stage
+        then
+                echo "SKIPPING STAGE $X (auto)" >> ./tmp/stage
                 continue
         fi
     
-        echo "STARTING LOOP $X" >> .stage
-        echo "-------------------------------------- STARTING LOOP $X -------------------------------------------------"
-        echo "-------------------------------------- STARTING LOOP $X -------------------------------------------------"
-        echo "-------------------------------------- STARTING LOOP $X -------------------------------------------------"
+        echo "STARTING STAGE $X" >> ./tmp/stage
+        echo "-------------------------------------- STARTING STAGE $X -------------------------------------------------"
+        echo "-------------------------------------- STARTING STAGE $X -------------------------------------------------"
+        echo "-------------------------------------- STARTING STAGE $X -------------------------------------------------"
 
         # fast option
         # nmap -p ${stages[$X]} --max-rtt-timeout 1250ms --min-rtt-timeout 100ms --initial-rtt-timeout 500ms --max-retries 1  -sS -Pn -n -sU -vv -iL ./targets.txt -oA general/stage$X-quick
@@ -57,27 +65,27 @@ do
                 ## sS scan check if actually exists
                 if [[ -f general/stage$X-sS-quick.xml ]]
                 then
-                        echo "RESUMING STAGE $X sS" >> .stage
+                        echo "RESUMING STAGE $X sS" >> ./tmp/stage
                         nmap --resume general/stage$X-sS-quick.xml
                 else
-                        echo "STARTING STAGE $X sS" >> .stage
+                        echo "STARTING STAGE $X sS" >> ./tmp/stage
                         nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sS-quick --excludefile ./exc.txt
                 fi
 
                 ## sT scan check if actually exists
                 if [[ -f general/stage$X-sT-quick.xml ]]
                 then
-                        echo "RESUMING STAGE $X sT" >> .stage
+                        echo "RESUMING STAGE $X sT" >> ./tmp/stage
                         nmap --resume general/stage$X-sT-quick.xml
                 else
-                        echo "STARTING STAGE $X sT" >> .stage
+                        echo "STARTING STAGE $X sT" >> ./tmp/stage
                         nmap -p ${stages[$X]} --max-retries 5  -sT -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sT-quick --excludefile ./exc.txt
                 fi
         else
                 # slightly quicker than a single scan at normal speed
-                echo "STARTING STAGE $X sS" >> .stage
+                echo "STARTING STAGE $X sS" >> ./tmp/stage
                 nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sS-quick --excludefile ./exc.txt
-                echo "STARTING STAGE $X sT" >> .stage
+                echo "STARTING STAGE $X sT" >> ./tmp/stage
                 nmap -p ${stages[$X]} --max-retries 3  -sT -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sT-quick --excludefile ./exc.txt
         fi
         
@@ -89,12 +97,19 @@ do
         for IP in `cat general/up.ip`
         do
                 PP=$(cat general/stage$X-*-quick.gnmap  | grep $IP | grep -oP '\d{1,5}/open/[tcpud]{3}' | awk '{if($3 =="tcp")print "T:"$1;else if($3 =="udp")print "U:"$1}' FS='/' | sort -u | xargs | tr ' ' ',')
-                if grep -Fxq "$IP" ./tmp/doneips_autoscan
+                if grep -q "specific $IP" ./tmp/doneips_autoscan
                 then
-                        nmap -p$PP $IP -sV -sC -sS -sU -oA machines/$IP-open -vv -Pn --append-output
+                        if grep -q "DONE specific $IP" ./tmp/doneips_autoscan
+                        then
+                                continue
+                        else
+                                nmap --resume machines/$IP-stage$X-open.xml
+                        fi
                 else
-                        nmap -p$PP $IP -A -sS -sC -sU -oA machines/$IP-open -vv -Pn --append-output
-                        echo "$IP" >> ./tmp/doneips_autoscan
+                        echo "STARTING specific $IP" >> ./tmp/doneips_autoscan
+                        nmap -p$PP $IP -A -sS -sC -sU -oA machines/$IP-stage$X-open -vv -Pn
                 fi
+                echo "DONE specific $IP" >> ./tmp/doneips_autoscan
         done
+        echo "ENDING STAGE $X" >> ./tmp/stage
 done
