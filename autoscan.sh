@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# v.0.22
+# Removed useless checks
+
 # v.0.21
 # Fixed resume function for single hosts
 # Added auto skip
@@ -33,7 +36,7 @@ stages=($stage0 $stage1 $stage2 $stage3 $stage4 $stage5 $stage6 $stage7 $stage8 
 mkdir machines 2>/dev/null
 mkdir general 2>/dev/null
 mkdir tmp 2>/dev/null
-echo '' > ./tmp/specific_ips
+touch ./tmp/specific_ips
 ip4=$(ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
 echo "$ipv4" >> ./exc.txt
 
@@ -59,10 +62,9 @@ do
         # fast option
         # nmap -p ${stages[$X]} --max-rtt-timeout 1250ms --min-rtt-timeout 100ms --initial-rtt-timeout 500ms --max-retries 1  -sS -Pn -n -sU -vv -iL ./targets.txt -oA general/stage$X-quick
         
-        # if resuming a stage
-        if [[ $X -eq $resume ]]
+        ## sS scan check if actually exists
+        if ! grep -q "DONE STAGE $X sS" ./tmp/stage
         then
-                ## sS scan check if actually exists
                 if [[ -f general/stage$X-sS-quick.xml ]]
                 then
                         echo "RESUMING STAGE $X sS" >> ./tmp/stage
@@ -70,9 +72,13 @@ do
                 else
                         echo "STARTING STAGE $X sS" >> ./tmp/stage
                         nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sS-quick --excludefile ./exc.txt
+                        echo "DONE STAGE $X sS" >> ./tmp/stage
                 fi
+        fi
 
-                ## sT scan check if actually exists
+        ## sT scan check if actually exists
+        if ! grep -q "DONE STAGE $X sT" ./tmp/stage
+        then
                 if [[ -f general/stage$X-sT-quick.xml ]]
                 then
                         echo "RESUMING STAGE $X sT" >> ./tmp/stage
@@ -80,13 +86,8 @@ do
                 else
                         echo "STARTING STAGE $X sT" >> ./tmp/stage
                         nmap -p ${stages[$X]} --max-retries 5  -sT -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sT-quick --excludefile ./exc.txt
+                        echo "DONE STAGE $X sT" >> ./tmp/stage
                 fi
-        else
-                # slightly quicker than a single scan at normal speed
-                echo "STARTING STAGE $X sS" >> ./tmp/stage
-                nmap -p ${stages[$X]} --max-retries 5  -sS -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sS-quick --excludefile ./exc.txt
-                echo "STARTING STAGE $X sT" >> ./tmp/stage
-                nmap -p ${stages[$X]} --max-retries 3  -sT -Pn -n -sU -vv -iL ./tar.txt -oA general/stage$X-sT-quick --excludefile ./exc.txt
         fi
         
         # very fast option
@@ -99,19 +100,20 @@ do
         for IP in `cat general/up.ip`
         do
                 PP=$(cat general/stage$X-*-quick.gnmap  | grep $IP | grep -oP '\d{1,5}/open/[tcpud]{3}' | awk '{if($3 =="tcp")print "T:"$1;else if($3 =="udp")print "U:"$1}' FS='/' | sort -u | xargs | tr ' ' ',')
-                if grep -q "specific $IP" ./tmp/specific_ips
+                
+                if ! grep -q "DONE specific $IP" ./tmp/specific_ips
                 then
-                        if grep -q "DONE specific $IP" ./tmp/specific_ips
+                        if grep -q "STARTING specific $IP" ./tmp/specific_ips
                         then
-                                continue
-                        else
+                                echo "RESUMING specific $IP" >> ./tmp/specific_ips
                                 nmap --resume machines/$IP-stage$X-open.xml
+                                echo "DONE specific $IP" >> ./tmp/specific_ips
+                        else
+                                echo "STARTING specific $IP" >> ./tmp/specific_ips
+                                nmap -p$PP $IP -A -sS -sC -sU -oA machines/$IP-stage$X-open -vv -Pn
+                                echo "DONE specific $IP" >> ./tmp/specific_ips
                         fi
-                else
-                        echo "STARTING specific $IP" >> ./tmp/specific_ips
-                        nmap -p$PP $IP -A -sS -sC -sU -oA machines/$IP-stage$X-open -vv -Pn
                 fi
-                echo "DONE specific $IP" >> ./tmp/specific_ips
         done
         echo "ENDING STAGE $X" >> ./tmp/stage
 done
