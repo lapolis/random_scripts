@@ -4,7 +4,8 @@
 
 SS="$1"
 FF=`echo $SS | tr '/' '-'`
-nmap -p22,139,445,80,443 -T5 $SS -oG "$FF"_nmap_NP.gnmap -Pn -vv
+nmap --top-ports=1000 -T4 $SS -oG "$FF"_nmap_NP.gnmap -Pn -vv
+# nmap -p22,139,445,80,443 $SS -oG "$FF"_nmap_NP.gnmap -Pn -vv
 # nmap --script broadcast-ping -T5 $SS -oG "$FF"_nmap_BP.gnmap -Pn -vv
 arp-scan -I eth1 $SS | tee -a "$FF".arp
 nmap -v -sP $SS -T5 -oN "$FF"_nmap_PS.nmap -vv
